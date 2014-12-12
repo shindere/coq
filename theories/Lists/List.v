@@ -1777,7 +1777,55 @@ Section ReDun.
     + now constructor.
   Qed.
 
+  (** Effective computation of a list without duplicates *) 
+
   Hypothesis decA: forall x y : A, {x = y} + {x <> y}.
+
+  Fixpoint nodup (l : list A) : list A := match l with
+    | [] => []
+    | x::xs => match (in_dec decA x xs) with
+      | left _ => nodup xs
+      | right _ => x::(nodup xs)
+    end
+  end.
+
+  Lemma nodup1 x l: In x l -> In x (nodup l).
+  Proof. induction l as [|a l' Hrec].
+    - simpl. auto.
+    - intro H. destruct (in_inv H) as [<-|Hx]; simpl; destruct (in_dec decA a l').
+      * now apply Hrec.
+      * apply in_eq.
+      * now apply Hrec.
+      * now apply in_cons, Hrec.
+  Qed.
+
+  Lemma nodup2 x l: In x (nodup l) -> In x l.
+  Proof. induction l as [|a l' Hrec].
+    - simpl. auto.
+    - intro H. simpl in H. destruct (in_dec decA a l').
+      * now apply in_cons, Hrec.
+      * destruct (in_inv H) as [<-|H'].
+        + apply in_eq.
+        + simpl. right. now apply Hrec.
+  Qed.
+
+  Theorem nodup_equiv x l: In x l <-> In x (nodup l).
+  Proof. split. apply nodup1. apply nodup2. Qed.
+
+  Lemma NoDup_nodup l: NoDup (nodup l).
+  Proof. induction l as [|a l' Hrec].
+    - simpl. apply NoDup_nil.
+    - simpl. destruct (in_dec decA a l').
+      * assumption.
+      * apply NoDup_cons; [now rewrite <- nodup_equiv | assumption].
+  Qed.
+
+  Lemma nodup3: forall (k l : list A) (a : A), nodup k = a :: l -> ~ In a l.
+  Proof.
+    intros k l a H. assert (H' : NoDup (a::l)).
+    - rewrite <- H. apply NoDup_nodup.
+    - now inversion_clear H'.
+  Qed.
 
   Theorem NoDup_count_occ l:
     NoDup l <-> (forall x:A, count_occ decA l x <= 1).
